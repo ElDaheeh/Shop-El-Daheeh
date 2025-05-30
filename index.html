@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مكتبة الدحيح</title>
+  <title>متجر مكتبة الدحيح</title>
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
   <!-- Font Awesome -->
@@ -517,6 +517,17 @@
         border-color: var(--primary-color);
         box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
     }
+    /* Style for invalid input */
+    .form-control.invalid {
+        border-color: var(--danger-color);
+        box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+    }
+    .error-message {
+        color: var(--danger-color);
+        font-size: 0.85rem;
+        margin-top: 5px;
+        display: none; /* Hidden by default */
+    }
 
     .form-check {
       display: flex;
@@ -906,7 +917,7 @@
     <div class="container">
       <div class="header-content">
         <div class="logo">
-          <h1>مكتبة الدحيح</h1>
+          <h1>متجر مكتبة الدحيح</h1>
         </div>
         <div class="header-actions">
             <div class="my-orders-icon" id="myOrdersIcon" title="طلباتي">
@@ -983,7 +994,8 @@
         </div>
         <div class="form-group">
           <label for="phoneNumber">رقم الهاتف</label>
-          <input type="tel" id="phoneNumber" class="form-control" required>
+          <input type="tel" id="phoneNumber" class="form-control" required pattern="^01[0125][0-9]{8}$" title="أدخل رقم هاتف مصري صحيح (11 رقم يبدأ بـ 010 أو 011 أو 012 أو 015)">
+          <span class="error-message" id="phoneError">رقم الهاتف غير صحيح.</span>
         </div>
         <div class="form-check">
           <input type="checkbox" id="deliveryOption" class="form-check-input">
@@ -1016,7 +1028,7 @@
       </div>
       <div class="confirmation-message">
         <i class="fas fa-check-circle"></i>
-        <p>شكراً لطلبك من مكتبة الدحيح.</p>
+        <p>شكراً لطلبك من متجر مكتبة الدحيح.</p>
         <p>رقم طلبك هو:</p>
         <p class="order-id" id="confirmedOrderId"></p>
         <p>يمكنك متابعة حالة طلبك من قسم "طلباتي".</p>
@@ -1069,7 +1081,7 @@
   <!-- Invoice Template (Hidden) -->
   <div id="invoiceTemplate">
     <div class="invoice-header">
-      <div class="invoice-logo">مكتبة الدحيح</div>
+      <div class="invoice-logo">متجر مكتبة الدحيح</div>
       <div class="invoice-info">
         <p>التاريخ: <span id="invoiceDate"></span></p>
         <p>رقم الطلب: <span id="invoiceOrderId"></span></p>
@@ -1110,7 +1122,7 @@
   <script>
     // --- Configuration ---
     // !!! استبدل هذا بالرابط الصحيح لـ Google Apps Script المنشور !!!
-    const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwT1fQ9MRkrU61q3mVuwopmQn3Q3NRd0uNPZbKzFeQPo9zBweMjP7Lr1WEhCGeMCwH1KQ/exec';
+    const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwT1fQ9MRkrU61q3mVuwopmQn3Q3NRd0uNPZbKzFeQPo9zBweMjP7Lr1WEhCGeMCwH1KQ/exec'; // Replace with your actual script URL
     const LOCAL_ORDERS_KEY = 'eldaheehLocalOrders';
 
     // --- DOM Elements ---
@@ -1146,6 +1158,8 @@
     const ratingStarsContainer = document.getElementById('ratingStars');
     const orderRatingInput = document.getElementById('orderRating');
     const submitConfirmReceiptBtn = document.getElementById('submitConfirmReceiptBtn');
+    const phoneNumberInput = document.getElementById('phoneNumber');
+    const phoneErrorMsg = document.getElementById('phoneError');
 
     // --- State Variables ---
     let allProducts = []; // Store all fetched products
@@ -1223,6 +1237,9 @@
               openConfirmReceiptModal(orderIdToConfirm);
           }
       });
+
+      // Phone number validation listener
+      phoneNumberInput.addEventListener('input', validatePhoneNumberInput);
     }
 
     // --- Product Handling ---
@@ -1542,9 +1559,36 @@
       cartCount.style.display = count > 0 ? 'flex' : 'none';
     }
 
+    // --- Phone Number Validation ---
+    function validatePhoneNumber(phone) {
+        // Basic Egyptian phone number validation (010, 011, 012, 015 followed by 8 digits)
+        const phoneRegex = /^01[0125][0-9]{8}$/;
+        return phoneRegex.test(phone);
+    }
+
+    function validatePhoneNumberInput() {
+        const isValid = validatePhoneNumber(phoneNumberInput.value);
+        if (isValid || phoneNumberInput.value === '') {
+            phoneNumberInput.classList.remove('invalid');
+            phoneErrorMsg.style.display = 'none';
+        } else {
+            phoneNumberInput.classList.add('invalid');
+            phoneErrorMsg.style.display = 'block';
+        }
+        return isValid;
+    }
+
     // --- Order Handling ---
     async function handleOrderSubmit(event) {
       event.preventDefault();
+
+      // Validate phone number before proceeding
+      if (!validatePhoneNumberInput()) {
+          showToast('يرجى إدخال رقم هاتف صحيح.', 'error');
+          phoneNumberInput.focus();
+          return;
+      }
+
       const submitSpinner = submitOrderBtn.querySelector('.spinner');
       submitSpinner.style.display = 'inline-block';
       submitOrderBtn.disabled = true;
@@ -1565,7 +1609,7 @@
         const currentOrderData = {}; // Use a local variable for this specific order
         currentOrderData.orderId = orderIdResult.orderId;
         currentOrderData.customerName = document.getElementById('customerName').value.trim();
-        currentOrderData.phoneNumber = document.getElementById('phoneNumber').value.trim();
+        currentOrderData.phoneNumber = phoneNumberInput.value.trim(); // Use validated number
         currentOrderData.address = deliveryOption.checked ? document.getElementById('address').value.trim() : 'استلام من المكتبة';
         const pickupDate = document.getElementById('pickupDate').value;
         const pickupTime = document.getElementById('pickupTime').value;
@@ -1573,27 +1617,30 @@
         currentOrderData.orderDate = new Date().toISOString(); // Use ISO format for consistency
         currentOrderData.totalAmount = cart.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2);
         currentOrderData.status = 'submitted'; // Initial status for local storage
-        // Simplify items for local storage and backend
+        // Simplify items for local storage
         currentOrderData.items = cart.map(item => ({
           name: item.name,
           price: item.price.toFixed(2),
           quantity: item.quantity,
           total: (item.price * item.quantity).toFixed(2)
         }));
-        const orderDetailsString = JSON.stringify(currentOrderData.items);
 
-        // 3. Submit order to backend using GET (simpler, watch URL length)
+        // *** NEW: Format order details string for the sheet ***
+        const orderDetailsString = currentOrderData.items.map(item => {
+            return `${item.name} (الكمية: ${item.quantity}) - ${item.total} جنيه`;
+        }).join('\n'); // Use newline character to separate items
+
+        // 3. Submit order to backend using GET
         const params = new URLSearchParams({
             action: 'submitOrder',
             orderId: currentOrderData.orderId,
-            // Format date for display in sheet if needed, or use ISO
             orderDate: new Date(currentOrderData.orderDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }),
             customerName: currentOrderData.customerName,
             phoneNumber: currentOrderData.phoneNumber,
             address: currentOrderData.address,
             pickupTime: currentOrderData.pickupTime,
             totalAmount: currentOrderData.totalAmount,
-            orderDetails: orderDetailsString // Send items as JSON string
+            orderDetails: orderDetailsString // Send formatted multi-line string
         });
 
         const submitResponse = await fetch(`${APP_SCRIPT_URL}?${params.toString()}`);
@@ -1603,7 +1650,6 @@
         const submitResult = await submitResponse.json();
 
         if (!submitResult.success) {
-          // Attempt to provide more specific error from backend if available
           throw new Error(submitResult.error || 'فشل الخادم في تسجيل الطلب. يرجى المحاولة مرة أخرى.');
         }
 
@@ -1619,17 +1665,17 @@
         closeModal(checkoutModal);
         openModal(confirmationModal);
         checkoutForm.reset();
+        phoneNumberInput.classList.remove('invalid'); // Reset phone validation style
+        phoneErrorMsg.style.display = 'none';
         addressGroup.style.display = 'none';
         // Cart reset is handled when confirmation modal is closed
 
       } catch (error) {
         console.error('Error submitting order:', error);
-        // Display a more informative error message
         showToast(`خطأ: ${error.message}`, 'error');
       } finally {
-        // Ensure spinner is hidden and button is re-enabled regardless of success/failure
         submitSpinner.style.display = 'none';
-        submitBtn.disabled = false;
+        submitOrderBtn.disabled = false;
       }
     }
 
@@ -1781,7 +1827,6 @@
       // Ensure orderData is populated from the *successfully submitted* order
       if (!orderData || !orderData.orderId) {
           console.error("Order data is missing for invoice preparation.");
-          // Maybe show a fallback message or disable download buttons?
           return;
       }
       const invoiceDateFormatted = orderData.orderDate ? new Date(orderData.orderDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : 'غير متوفر';
@@ -1801,7 +1846,6 @@
       if (orderData.items && orderData.items.length > 0) {
           orderData.items.forEach((item, index) => {
             const row = document.createElement('tr');
-            // Item price and total should already be formatted strings in orderData.items
             row.innerHTML = `
               <td>${index + 1}</td>
               <td>${item.name}</td>
@@ -1827,35 +1871,28 @@
       const pdf = new jsPDF('p', 'pt', 'a4');
       const invoiceElement = document.getElementById('invoiceTemplate');
 
-      // Temporarily display the element to ensure styles are computed
       invoiceElement.style.display = 'block';
       invoiceElement.style.position = 'absolute';
       invoiceElement.style.left = '-9999px';
 
       html2canvas(invoiceElement, {
-        scale: 2, // Higher scale for better quality
+        scale: 2, 
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff' // Ensure white background
+        backgroundColor: '#ffffff'
       }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 550; // A4 width in points (595.28) with margins
-        const pageHeight = 842; // A4 height in points
+        const imgWidth = 550; 
+        const pageHeight = 842; 
         const imgHeight = canvas.height * imgWidth / canvas.width;
         let heightLeft = imgHeight;
-        let position = 20; // Initial position with margin
-
-        // Note: Embedding custom fonts like Cairo client-side is complex.
-        // jsPDF might fallback to standard fonts. For best results, use standard fonts
-        // or generate PDF server-side if specific fonts are critical.
-        // pdf.addFont('/path/to/Cairo-Regular.ttf', 'Cairo', 'normal');
-        // pdf.setFont('Cairo');
+        let position = 20; 
 
         pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-        heightLeft -= (pageHeight - 40); // Adjust for margins
+        heightLeft -= (pageHeight - 40); 
 
         while (heightLeft > 0) {
-          position = - (imgHeight - heightLeft) - 20; // Adjust position for next page
+          position = - (imgHeight - heightLeft) - 20; 
           pdf.addPage();
           pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
           heightLeft -= (pageHeight - 40);
@@ -1867,7 +1904,6 @@
           console.error('Error generating PDF:', error);
           showToast('فشل في إنشاء ملف PDF.', 'error');
       }).finally(() => {
-          // Hide the element again
           invoiceElement.style.display = 'none';
           invoiceElement.style.position = '';
           invoiceElement.style.left = '';
@@ -1883,7 +1919,6 @@
         showToast('جاري تجهيز الصورة...', 'info');
         const invoiceElement = document.getElementById('invoiceTemplate');
 
-        // Temporarily display the element
         invoiceElement.style.display = 'block';
         invoiceElement.style.position = 'absolute';
         invoiceElement.style.left = '-9999px';
@@ -1897,9 +1932,8 @@
             try {
                 const link = document.createElement('a');
                 link.download = `${orderData.orderId}.png`;
-                link.href = canvas.toDataURL('image/png'); // Use PNG
+                link.href = canvas.toDataURL('image/png'); 
 
-                // Append link to body, click, then remove
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -1912,7 +1946,6 @@
             console.error('html2canvas error:', error);
             showToast('فشل في تحويل الفاتورة إلى صورة.', 'error');
         }).finally(() => {
-            // Hide the element again
             invoiceElement.style.display = 'none';
             invoiceElement.style.position = '';
             invoiceElement.style.left = '';
@@ -1929,7 +1962,7 @@
     function setMinPickupDate() {
         const today = new Date();
         const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months start at 0!
+        const mm = String(today.getMonth() + 1).padStart(2, '0'); 
         const dd = String(today.getDate()).padStart(2, '0');
         const minDate = `${yyyy}-${mm}-${dd}`;
         document.getElementById('pickupDate').setAttribute('min', minDate);
@@ -1940,7 +1973,6 @@
     function openModal(modal) {
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
-      // Update cart display when cart modal opens
       if (modal.id === 'cartModal') {
           updateCartDisplay();
       }
@@ -1948,7 +1980,6 @@
 
     function closeModal(modal) {
       modal.classList.remove('active');
-      // Check if any other modal is active before restoring scroll
       const anyActiveModal = document.querySelector('.modal-overlay.active');
       if (!anyActiveModal) {
           document.body.style.overflow = '';
@@ -1961,13 +1992,12 @@
       toast.className = `toast ${type}`;
       toast.classList.add('show');
 
-      // Clear previous timer if exists
       if (toast.timer) clearTimeout(toast.timer);
 
       toast.timer = setTimeout(() => {
         toast.classList.remove('show');
         toast.timer = null;
-      }, 3500); // Slightly longer duration
+      }, 3500); 
     }
 
     // Local Storage for Cart
@@ -1981,16 +2011,14 @@
         try {
           cart = JSON.parse(savedCart);
           updateCartCount();
-          // Note: Cart display is updated when modal opens or items are added/removed
         } catch (error) {
           console.error('Error loading cart from local storage:', error);
           cart = [];
-          localStorage.removeItem('eldaheehCart'); // Clear corrupted data
+          localStorage.removeItem('eldaheehCart'); 
         }
       }
     }
   </script>
 </body>
 </html>
-
 
